@@ -13,7 +13,7 @@ if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
 const auth = firebase.auth();
 const db = firebase.database();
 
-// --- 2. AUTH & REDIRECT ---
+// --- 2. AUTH LOGIC ---
 auth.onAuthStateChanged(user => {
     const path = window.location.pathname;
     let page = path.split("/").pop();
@@ -23,7 +23,6 @@ auth.onAuthStateChanged(user => {
         if (page === "index.html") window.location.href = "app.html";
         if(document.getElementById('user-email-display')) {
             document.getElementById('user-email-display').innerText = user.email.split('@')[0];
-            // Load Profile Data (Coins/Role) Logic here...
         }
     } else {
         if (page === "app.html") window.location.href = "index.html";
@@ -63,25 +62,23 @@ function switchTab(tabId, el) {
     el.classList.add('active');
 }
 
-// --- 4. VIDEO CHAT LOGIC (Advanced) ---
+// --- 4. VIDEO CHAT LOGIC (FIXED) ---
 if (window.location.pathname.includes("app.html")) {
     
     let peer, myStream, currentCall, myPeerId, currentPartnerId;
     let isMatching = false;
-    let currentCameraMode = 'user'; // 'user' (Front) or 'environment' (Back)
+    let currentCameraMode = 'user'; // 'user' = Front, 'environment' = Back
 
-    // --- Start Matching ---
     function startMatching() {
         if(isMatching) return;
         isMatching = true;
 
-        // UI Updates
         document.getElementById('start-btn').style.display = 'none';
         document.getElementById('cancel-btn').style.display = 'inline-block';
         const statusText = document.getElementById('status-text');
-        statusText.innerText = "Connecting Camera...";
+        statusText.innerText = "Accessing Camera...";
         
-        // Camera ON
+        // Open Camera (Audio + Video)
         openCamera(currentCameraMode).then(() => {
             statusText.innerText = "Connecting to Server...";
             if(!peer) {
@@ -91,10 +88,14 @@ if (window.location.pathname.includes("app.html")) {
                     findMatch(); 
                 });
                 peer.on('call', call => {
-                    // Answer Call
                     document.getElementById('video-container').style.display = 'block';
                     call.answer(myStream);
                     handleCall(call);
+                });
+                peer.on('error', err => {
+                    console.error("Peer Error:", err);
+                    statusText.innerText = "Connection Error. Retrying...";
+                    setTimeout(findMatch, 2000);
                 });
             } else {
                 findMatch();
@@ -102,48 +103,52 @@ if (window.location.pathname.includes("app.html")) {
         });
     }
 
-    // --- Helper: Open Camera ---
+    // --- Camera Handler (With Switch Fix) ---
     function openCamera(mode) {
-        return navigator.mediaDevices.getUserMedia({ video: { facingMode: mode }, audio: true })
+        return navigator.mediaDevices.getUserMedia({ 
+            video: { facingMode: mode }, 
+            audio: true // Audio is REQUIRED
+        })
         .then(stream => {
-            if(myStream) myStream.getTracks().forEach(track => track.stop()); // Stop old stream
+            // Stop old tracks if exist
+            if(myStream) myStream.getTracks().forEach(track => track.stop());
+            
             myStream = stream;
             document.getElementById('myVideo').srcObject = stream;
             
-            // If inside a call, replace track (Advanced) - For now, we restart logic
-            if(currentCall) {
+            // If already in a call, replace the video track seamlessly
+            if(currentCall && currentCall.peerConnection) {
                 const videoTrack = stream.getVideoTracks()[0];
                 const sender = currentCall.peerConnection.getSenders().find(s => s.track.kind === videoTrack.kind);
-                if(sender) sender.replaceTrack(videoTrack);
+                if(sender) {
+                    sender.replaceTrack(videoTrack).catch(err => console.error("Track replace error:", err));
+                }
             }
         })
         .catch(err => {
-            alert("Camera Error: " + err.message);
+            alert("Camera/Mic Error: " + err.message);
             isMatching = false;
             resetUI();
         });
     }
 
-    // --- Switch Camera Logic ---
     window.switchCamera = function() {
+        // Toggle Mode
         currentCameraMode = (currentCameraMode === 'user') ? 'environment' : 'user';
         openCamera(currentCameraMode);
     };
 
-    // --- Cancel Search Logic ---
     window.cancelSearch = function() {
         isMatching = false;
-        
-        // Remove from waiting queue
-        db.ref('waiting_queue').orderByValue().equalTo(myPeerId).once('value', snapshot => {
-            snapshot.forEach(child => child.ref.remove());
-        });
-
-        // Close Camera & Peer
+        if(myPeerId) {
+            db.ref('waiting_queue').orderByValue().equalTo(myPeerId).once('value', snapshot => {
+                snapshot.forEach(child => child.ref.remove());
+            });
+        }
         if(myStream) myStream.getTracks().forEach(track => track.stop());
+        if(currentCall) currentCall.close();
         if(peer) peer.destroy();
         peer = null;
-
         resetUI();
     };
 
@@ -154,31 +159,25 @@ if (window.location.pathname.includes("app.html")) {
         document.getElementById('status-text').innerText = "";
     }
 
-    // --- Matching Logic (with Block check) ---
     function findMatch() {
         if(!isMatching) return;
         document.getElementById('status-text').innerText = "Searching for Partner...";
+        document.getElementById('call-timer').innerText = "Searching...";
         
-        // Load Blocked Users List
         db.ref('users/' + auth.currentUser.uid + '/blocked').once('value').then(blockedSnapshot => {
             const blockedUsers = blockedSnapshot.val() || {};
-
             const queueRef = db.ref('waiting_queue');
+            
             queueRef.once('value', snapshot => {
                 const users = snapshot.val();
-                
                 if (users) {
                     const keys = Object.keys(users);
                     let foundPartner = false;
-
                     for(let key of keys) {
                         const partnerId = users[key];
-                        
-                        // Check if not me AND not blocked
                         if (partnerId !== myPeerId && !blockedUsers[partnerId]) {
                             foundPartner = true;
-                            currentPartnerId = partnerId; // Save for reporting
-
+                            currentPartnerId = partnerId;
                             db.ref('waiting_queue/' + key).remove().then(() => {
                                 const call = peer.call(partnerId, myStream);
                                 handleCall(call);
@@ -186,8 +185,7 @@ if (window.location.pathname.includes("app.html")) {
                             break; 
                         }
                     }
-
-                    if(!foundPartner) addToQueue(); // Everyone is blocked or me
+                    if(!foundPartner) addToQueue();
                 } else {
                     addToQueue();
                 }
@@ -205,35 +203,46 @@ if (window.location.pathname.includes("app.html")) {
 
     function handleCall(call) {
         currentCall = call;
-        currentPartnerId = call.peer; // Store partner ID
+        currentPartnerId = call.peer;
+        
+        // Show Video UI
         document.getElementById('video-container').style.display = 'block';
         document.getElementById('status-text').innerText = "";
         
+        // Update WhatsApp Style Name
+        document.getElementById('remote-name').innerText = "ID: " + currentPartnerId.substring(0, 6) + "...";
+        document.getElementById('call-timer').innerText = "Connected";
+
         call.on('stream', remoteStream => {
-            document.getElementById('remoteVideo').srcObject = remoteStream;
+            const remoteVideo = document.getElementById('remoteVideo');
+            remoteVideo.srcObject = remoteStream;
+            
+            // --- AUDIO FIX ---
+            // Ensure remote video is NOT muted and force play
+            remoteVideo.muted = false;
+            remoteVideo.play().catch(e => console.error("Auto-play error:", e));
         });
+
         call.on('close', () => { if(isMatching) findMatch(); });
         call.on('error', () => { if(isMatching) findMatch(); });
     }
 
-    // --- Report User Logic ---
     window.reportUser = function() {
-        if(currentPartnerId && confirm("Report and Block this user?")) {
-            // Add to Block List in Firebase
+        if(currentPartnerId && confirm("Block this user?")) {
             db.ref('users/' + auth.currentUser.uid + '/blocked/' + currentPartnerId).set(true);
-            alert("User Blocked!");
-            findNext(); // Skip immediately
+            findNext();
         }
     };
 
     window.endCall = function() {
         if (currentCall) currentCall.close();
-        cancelSearch(); // Fully stop
+        cancelSearch();
     };
 
     window.findNext = function() {
         if (currentCall) currentCall.close();
-        // Camera stays open, just find new match
+        document.getElementById('remoteVideo').srcObject = null;
+        document.getElementById('remote-name').innerText = "Finding next...";
         findMatch();
     };
 }

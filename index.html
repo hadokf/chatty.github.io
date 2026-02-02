@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chatty - Login</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --bg-color: #050505;
+            --glass-bg: rgba(255, 255, 255, 0.08);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --primary-gradient: linear-gradient(135deg, #00C6FF 0%, #0072FF 100%);
+            --accent-gradient: linear-gradient(135deg, #FF0055 0%, #FF00AA 100%);
+        }
+
+        body {
+            margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif;
+            background-color: var(--bg-color);
+            background-image: radial-gradient(circle at top left, #1a0b2e 0%, #000000 60%);
+            color: white; height: 100vh; overflow: hidden;
+            display: flex; align-items: center; justify-content: center;
+        }
+
+        .login-container {
+            width: 90%; max-width: 400px;
+            text-align: center; padding: 30px;
+            background: rgba(0, 0, 0, 0.5); backdrop-filter: blur(15px);
+            border-radius: 20px; border: 1px solid var(--glass-border);
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
+
+        .logo { 
+            font-size: 40px; font-weight: 800; margin-bottom: 10px; display: block;
+            background: var(--accent-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            letter-spacing: 2px;
+        }
+
+        .input-field {
+            width: 100%; padding: 15px; margin: 10px 0; border-radius: 12px; box-sizing: border-box;
+            border: 1px solid var(--glass-border); background: var(--glass-bg);
+            color: white; outline: none; font-size: 16px;
+        }
+
+        .btn-primary {
+            width: 100%; padding: 15px; border-radius: 30px; border: none;
+            font-weight: bold; cursor: pointer; margin-top: 15px; font-size: 16px;
+            background: var(--primary-gradient); color: white; transition: 0.3s;
+        }
+        .btn-secondary { background: var(--accent-gradient); margin-top: 10px; }
+        .btn-google { background: white; color: black; margin-top: 10px; display: flex; align-items: center; justify-content: center; gap: 10px; }
+        
+        .btn-primary:active { transform: scale(0.95); }
+
+    </style>
+</head>
+<body>
+
+    <div class="login-container">
+        <span class="logo">Chatty</span>
+        <p style="color: #bbb; margin-bottom: 30px;">Meet. Chat. Vibe.</p>
+
+        <input type="email" id="email" class="input-field" placeholder="Email Address">
+        <input type="password" id="password" class="input-field" placeholder="Password">
+
+        <button onclick="loginUser()" class="btn-primary">Log In</button>
+        <button onclick="registerUser()" class="btn-primary btn-secondary">Create Account</button>
+        
+        <button onclick="loginWithGoogle()" class="btn-primary btn-google">
+            <i class="fab fa-google" style="color: #DB4437;"></i> Continue with Google
+        </button>
+        
+        <p id="error-msg" style="color: #ff4444; margin-top: 15px; font-size: 14px; min-height: 20px;"></p>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    
+    <script src="logic.js"></script> 
+</body>
+</html>

@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chatty - Home</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --bg-color: #050505;
+            --glass-bg: rgba(255, 255, 255, 0.08);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --primary-gradient: linear-gradient(135deg, #00C6FF 0%, #0072FF 100%);
+            --accent-gradient: linear-gradient(135deg, #FF0055 0%, #FF00AA 100%);
+        }
+
+        body {
+            margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif;
+            background-color: var(--bg-color);
+            background-image: radial-gradient(circle at top left, #1a0b2e 0%, #000000 60%);
+            color: white; overflow: hidden;
+        }
+
+        .top-bar {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 20px; position: sticky; top: 0; z-index: 50;
+            background: rgba(0,0,0,0.2); backdrop-filter: blur(10px);
+        }
+        .logo { 
+            font-size: 24px; font-weight: 800; 
+            background: var(--accent-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            letter-spacing: 1px;
+        }
+
+        .tab-content { display: none; padding: 15px; height: 85vh; overflow-y: auto; text-align: center; }
+        .active-tab { display: block; animation: slideUp 0.4s ease; }
+        @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+        .btn-start {
+            background: var(--primary-gradient); border: none; color: white;
+            padding: 15px 40px; border-radius: 40px; font-size: 20px; font-weight: bold;
+            margin-top: 30px; cursor: pointer; box-shadow: 0 0 15px rgba(0, 198, 255, 0.4);
+        }
+
+        #video-container {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100vh;
+            z-index: 100; display: none; background: black;
+        }
+        video { width: 100%; height: 100%; object-fit: cover; }
+        #myVideo {
+            position: absolute; bottom: 120px; right: 20px;
+            width: 100px; height: 140px; border-radius: 15px;
+            border: 2px solid rgba(255,255,255,0.3); z-index: 110;
+        }
+        .controls {
+            position: absolute; bottom: 40px; width: 100%;
+            display: flex; justify-content: center; gap: 20px; z-index: 120;
+        }
+        .btn-control {
+            width: 60px; height: 60px; border-radius: 50%; border: none; font-size: 24px;
+            display: flex; align-items: center; justify-content: center; cursor: pointer; color: white;
+        }
+
+        .bottom-nav {
+            position: fixed; bottom: 20px; left: 5%; width: 90%; height: 65px;
+            background: rgba(20, 20, 20, 0.85); backdrop-filter: blur(15px);
+            border-radius: 35px; border: 1px solid var(--glass-border);
+            display: flex; justify-content: space-around; align-items: center; z-index: 50;
+        }
+        .nav-item { color: #666; font-size: 22px; cursor: pointer; transition: 0.3s; }
+        .nav-item.active { color: #00C6FF; transform: scale(1.2); }
+    </style>
+</head>
+<body>
+
+    <div id="video-container">
+        <video id="remoteVideo" autoplay playsinline></video>
+        <video id="myVideo" autoplay muted playsinline></video>
+        <div class="controls">
+            <button class="btn-control" style="background: #ff0055;" onclick="endCall()"><i class="fas fa-times"></i></button>
+            <button class="btn-control" style="background: #00C6FF;" onclick="findNext()"><i class="fas fa-forward"></i></button>
+        </div>
+    </div>
+
+    <div id="main-ui">
+        <div class="top-bar">
+            <div class="logo"><i class="fas fa-comment-dots"></i> Chatty</div>
+            <button onclick="logout()" style="background: rgba(255,255,255,0.1); border: none; color: white; padding: 8px 15px; border-radius: 20px; font-size: 12px;">Logout <i class="fas fa-sign-out-alt"></i></button>
+        </div>
+
+        <div id="home" class="tab-content active-tab">
+            <div style="margin-top: 60px;">
+                <h1 style="font-size: 32px; margin-bottom: 10px;">Find Your<br><span style="color:#00C6FF">Perfect Match</span></h1>
+                <p style="color: #aaa;">Connect with random people worldwide.</p>
+                <button onclick="startMatching()" class="btn-start">Start Matching 🚀</button>
+                <p id="status-text" style="margin-top: 30px; color: #00C6FF; font-weight: bold;"></p>
+            </div>
+        </div>
+
+        <div id="messages" class="tab-content">
+            <h2>Messages</h2>
+            <div style="background: rgba(255,255,255,0.05); padding: 20px; border-radius: 10px; margin-top: 20px;">
+                <p style="color: gray;">No new messages yet.</p>
+            </div>
+        </div>
+
+        <div id="profile" class="tab-content">
+            <img src="https://i.pravatar.cc/150?img=12" style="width: 100px; height: 100px; border-radius: 50%; border: 3px solid #00C6FF; margin-top: 30px;">
+            <h2 id="user-email-display" style="margin-top: 15px;">Loading...</h2>
+            
+            <span id="role-badge" style="background: #333; padding: 5px 15px; border-radius: 10px; font-size: 14px; font-weight: bold; color: white;">Member</span>
+            
+            <div style="margin-top: 30px; text-align: left; padding: 0 20px;">
+                <p style="padding: 15px; background: rgba(255,255,255,0.05); border-radius: 10px;">🔥 <b>Matches:</b> 0</p>
+                <p style="padding: 15px; background: rgba(255,255,255,0.05); border-radius: 10px;">🎁 <b>Coins:</b> <span id="coin-count">0</span></p>
+            </div>
+        </div>
+
+        <div class="bottom-nav">
+            <div class="nav-item active" onclick="switchTab('home', this)"><i class="fas fa-home"></i></div>
+            <div class="nav-item" onclick="switchTab('messages', this)"><i class="fas fa-comment-alt"></i></div>
+            <div class="nav-item" onclick="switchTab('profile', this)"><i class="fas fa-user"></i></div>
+        </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+    
+    <script src="logic.js"></script>
+</body>
+</html>

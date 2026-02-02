@@ -9,8 +9,6 @@
     <style>
         :root {
             --bg-color: #050505;
-            --glass-bg: rgba(255, 255, 255, 0.08);
-            --glass-border: rgba(255, 255, 255, 0.1);
             --primary-gradient: linear-gradient(135deg, #00C6FF 0%, #0072FF 100%);
             --accent-gradient: linear-gradient(135deg, #FF0055 0%, #FF00AA 100%);
         }
@@ -30,46 +28,67 @@
         .logo { 
             font-size: 24px; font-weight: 800; 
             background: var(--accent-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-            letter-spacing: 1px;
         }
 
         .tab-content { display: none; padding: 15px; height: 85vh; overflow-y: auto; text-align: center; }
         .active-tab { display: block; animation: slideUp 0.4s ease; }
         @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 
-        .btn-start {
-            background: var(--primary-gradient); border: none; color: white;
-            padding: 15px 40px; border-radius: 40px; font-size: 20px; font-weight: bold;
-            margin-top: 30px; cursor: pointer; box-shadow: 0 0 15px rgba(0, 198, 255, 0.4);
-        }
-
+        /* Video Container Styles */
         #video-container {
             position: absolute; top: 0; left: 0; width: 100%; height: 100vh;
             z-index: 100; display: none; background: black;
         }
-        video { width: 100%; height: 100%; object-fit: cover; }
+        video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); } /* Mirror Effect */
+        
         #myVideo {
             position: absolute; bottom: 120px; right: 20px;
             width: 100px; height: 140px; border-radius: 15px;
             border: 2px solid rgba(255,255,255,0.3); z-index: 110;
         }
+
+        /* Top Controls (Report & Switch) */
+        .video-top-controls {
+            position: absolute; top: 20px; right: 20px; z-index: 120;
+            display: flex; flex-direction: column; gap: 15px;
+        }
+        .btn-mini {
+            width: 45px; height: 45px; border-radius: 50%; border: none;
+            background: rgba(0,0,0,0.6); color: white; font-size: 18px;
+            backdrop-filter: blur(5px); cursor: pointer;
+        }
+
+        /* Bottom Controls */
         .controls {
             position: absolute; bottom: 40px; width: 100%;
-            display: flex; justify-content: center; gap: 20px; z-index: 120;
+            display: flex; justify-content: center; gap: 30px; z-index: 120;
         }
         .btn-control {
-            width: 60px; height: 60px; border-radius: 50%; border: none; font-size: 24px;
+            width: 70px; height: 70px; border-radius: 50%; border: none; font-size: 28px;
             display: flex; align-items: center; justify-content: center; cursor: pointer; color: white;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+        }
+
+        .btn-start {
+            background: var(--primary-gradient); border: none; color: white;
+            padding: 15px 40px; border-radius: 40px; font-size: 20px; font-weight: bold;
+            margin-top: 30px; cursor: pointer; box-shadow: 0 0 15px rgba(0, 198, 255, 0.4);
+        }
+        
+        .btn-cancel {
+            background: #333; color: white; border: 1px solid #555;
+            padding: 10px 30px; border-radius: 30px; margin-top: 20px; cursor: pointer;
+            display: none; /* Initially hidden */
         }
 
         .bottom-nav {
             position: fixed; bottom: 20px; left: 5%; width: 90%; height: 65px;
             background: rgba(20, 20, 20, 0.85); backdrop-filter: blur(15px);
-            border-radius: 35px; border: 1px solid var(--glass-border);
+            border-radius: 35px; border: 1px solid rgba(255,255,255,0.1);
             display: flex; justify-content: space-around; align-items: center; z-index: 50;
         }
-        .nav-item { color: #666; font-size: 22px; cursor: pointer; transition: 0.3s; }
         .nav-item.active { color: #00C6FF; transform: scale(1.2); }
+        .nav-item { color: #666; font-size: 22px; cursor: pointer; transition: 0.3s; }
     </style>
 </head>
 <body>
@@ -77,23 +96,33 @@
     <div id="video-container">
         <video id="remoteVideo" autoplay playsinline></video>
         <video id="myVideo" autoplay muted playsinline></video>
+        
+        <div class="video-top-controls">
+            <button class="btn-mini" onclick="switchCamera()"><i class="fas fa-sync-alt"></i></button>
+            <button class="btn-mini" style="color: #ff4444;" onclick="reportUser()"><i class="fas fa-flag"></i></button>
+        </div>
+
         <div class="controls">
-            <button class="btn-control" style="background: #ff0055;" onclick="endCall()"><i class="fas fa-times"></i></button>
-            <button class="btn-control" style="background: #00C6FF;" onclick="findNext()"><i class="fas fa-forward"></i></button>
+            <button class="btn-control" style="background: #ff0055;" onclick="endCall()"><i class="fas fa-phone-slash"></i></button>
+            <button class="btn-control" style="background: #00C6FF;" onclick="findNext()">New <i class="fas fa-arrow-right" style="font-size: 16px; margin-left: 5px;"></i></button>
         </div>
     </div>
 
     <div id="main-ui">
         <div class="top-bar">
             <div class="logo"><i class="fas fa-comment-dots"></i> Chatty</div>
-            <button onclick="logout()" style="background: rgba(255,255,255,0.1); border: none; color: white; padding: 8px 15px; border-radius: 20px; font-size: 12px;">Logout <i class="fas fa-sign-out-alt"></i></button>
+            <button onclick="logout()" style="background: rgba(255,255,255,0.1); border: none; color: white; padding: 8px 15px; border-radius: 20px; font-size: 12px;">Logout</button>
         </div>
 
         <div id="home" class="tab-content active-tab">
             <div style="margin-top: 60px;">
                 <h1 style="font-size: 32px; margin-bottom: 10px;">Find Your<br><span style="color:#00C6FF">Perfect Match</span></h1>
-                <p style="color: #aaa;">Connect with random people worldwide.</p>
-                <button onclick="startMatching()" class="btn-start">Start Matching 🚀</button>
+                
+                <button onclick="startMatching()" class="btn-start" id="start-btn">Start Matching 🚀</button>
+                
+                <br>
+                <button onclick="cancelSearch()" class="btn-cancel" id="cancel-btn">Cancel Search ❌</button>
+
                 <p id="status-text" style="margin-top: 30px; color: #00C6FF; font-weight: bold;"></p>
             </div>
         </div>
@@ -108,13 +137,7 @@
         <div id="profile" class="tab-content">
             <img src="https://i.pravatar.cc/150?img=12" style="width: 100px; height: 100px; border-radius: 50%; border: 3px solid #00C6FF; margin-top: 30px;">
             <h2 id="user-email-display" style="margin-top: 15px;">Loading...</h2>
-            
             <span id="role-badge" style="background: #333; padding: 5px 15px; border-radius: 10px; font-size: 14px; font-weight: bold; color: white;">Member</span>
-            
-            <div style="margin-top: 30px; text-align: left; padding: 0 20px;">
-                <p style="padding: 15px; background: rgba(255,255,255,0.05); border-radius: 10px;">🔥 <b>Matches:</b> 0</p>
-                <p style="padding: 15px; background: rgba(255,255,255,0.05); border-radius: 10px;">🎁 <b>Coins:</b> <span id="coin-count">0</span></p>
-            </div>
         </div>
 
         <div class="bottom-nav">
@@ -132,3 +155,4 @@
     <script src="logic.js"></script>
 </body>
 </html>
+

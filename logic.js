@@ -1,4 +1,4 @@
-// --- 1. FIREBASE CONFIGURATION ---
+// --- 1. CONFIGURATION ---
 const firebaseConfig = {
   apiKey: "AIzaSyAGN80kDKzxSEPacwS1eE0nCnoK8T1v8Qk",
   authDomain: "chatty-33835.firebaseapp.com",
@@ -13,7 +13,7 @@ if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
 const auth = firebase.auth();
 const db = firebase.database();
 
-// --- 2. AUTH LOGIC ---
+// --- 2. AUTH & UI ---
 auth.onAuthStateChanged(user => {
     const path = window.location.pathname;
     let page = path.split("/").pop();
@@ -29,7 +29,6 @@ auth.onAuthStateChanged(user => {
     }
 });
 
-// --- 3. LOGIN FUNCTIONS ---
 function loginUser() {
     const email = document.getElementById('email').value;
     const password = document.getElementById('password').value;
@@ -62,12 +61,16 @@ function switchTab(tabId, el) {
     el.classList.add('active');
 }
 
-// --- 4. VIDEO CHAT LOGIC (FIXED) ---
+// --- 3. VIDEO CHAT LOGIC ---
 if (window.location.pathname.includes("app.html")) {
     
     let peer, myStream, currentCall, myPeerId, currentPartnerId;
     let isMatching = false;
-    let currentCameraMode = 'user'; // 'user' = Front, 'environment' = Back
+    let currentCameraMode = 'user';
+    
+    // Toggle States
+    let isMicOn = true;
+    let isCamOn = true;
 
     function startMatching() {
         if(isMatching) return;
@@ -75,12 +78,10 @@ if (window.location.pathname.includes("app.html")) {
 
         document.getElementById('start-btn').style.display = 'none';
         document.getElementById('cancel-btn').style.display = 'inline-block';
-        const statusText = document.getElementById('status-text');
-        statusText.innerText = "Accessing Camera...";
+        document.getElementById('status-text').innerText = "Accessing Camera...";
         
-        // Open Camera (Audio + Video)
         openCamera(currentCameraMode).then(() => {
-            statusText.innerText = "Connecting to Server...";
+            document.getElementById('status-text').innerText = "Connecting to Server...";
             if(!peer) {
                 peer = new Peer();
                 peer.on('open', id => {
@@ -94,7 +95,6 @@ if (window.location.pathname.includes("app.html")) {
                 });
                 peer.on('error', err => {
                     console.error("Peer Error:", err);
-                    statusText.innerText = "Connection Error. Retrying...";
                     setTimeout(findMatch, 2000);
                 });
             } else {
@@ -103,37 +103,88 @@ if (window.location.pathname.includes("app.html")) {
         });
     }
 
-    // --- Camera Handler (With Switch Fix) ---
+    // --- Camera Handler (Fixed) ---
     function openCamera(mode) {
+        if(myStream) {
+            myStream.getTracks().forEach(track => track.stop());
+        }
         return navigator.mediaDevices.getUserMedia({ 
             video: { facingMode: mode }, 
-            audio: true // Audio is REQUIRED
+            audio: true 
         })
         .then(stream => {
-            // Stop old tracks if exist
-            if(myStream) myStream.getTracks().forEach(track => track.stop());
-            
             myStream = stream;
             document.getElementById('myVideo').srcObject = stream;
             
-            // If already in a call, replace the video track seamlessly
+            // Restore toggle states
+            isMicOn = true; isCamOn = true;
+            updateToggleUI();
+
             if(currentCall && currentCall.peerConnection) {
                 const videoTrack = stream.getVideoTracks()[0];
-                const sender = currentCall.peerConnection.getSenders().find(s => s.track.kind === videoTrack.kind);
-                if(sender) {
-                    sender.replaceTrack(videoTrack).catch(err => console.error("Track replace error:", err));
-                }
+                const sender = currentCall.peerConnection.getSenders().find(s => s.track.kind === 'video');
+                if(sender) sender.replaceTrack(videoTrack).catch(e => console.error(e));
+                
+                // Mic update for call
+                const audioTrack = stream.getAudioTracks()[0];
+                const audioSender = currentCall.peerConnection.getSenders().find(s => s.track.kind === 'audio');
+                if(audioSender) audioSender.replaceTrack(audioTrack).catch(e => console.error(e));
             }
         })
         .catch(err => {
-            alert("Camera/Mic Error: " + err.message);
+            alert("Camera Error: " + err.message + ". Close other apps.");
             isMatching = false;
             resetUI();
         });
     }
 
+    // --- TOGGLE FUNCTIONS ---
+    window.toggleMic = function() {
+        if (myStream) {
+            const audioTrack = myStream.getAudioTracks()[0];
+            if (audioTrack) {
+                isMicOn = !isMicOn;
+                audioTrack.enabled = isMicOn;
+                updateToggleUI();
+            }
+        }
+    };
+
+    window.toggleVideo = function() {
+        if (myStream) {
+            const videoTrack = myStream.getVideoTracks()[0];
+            if (videoTrack) {
+                isCamOn = !isCamOn;
+                videoTrack.enabled = isCamOn;
+                updateToggleUI();
+            }
+        }
+    };
+
+    function updateToggleUI() {
+        const micBtn = document.getElementById('btn-mic');
+        const vidBtn = document.getElementById('btn-video');
+        
+        // Update Mic Button
+        if (isMicOn) {
+            micBtn.innerHTML = '<i class="fas fa-microphone"></i>';
+            micBtn.classList.remove('off');
+        } else {
+            micBtn.innerHTML = '<i class="fas fa-microphone-slash"></i>';
+            micBtn.classList.add('off');
+        }
+
+        // Update Video Button
+        if (isCamOn) {
+            vidBtn.innerHTML = '<i class="fas fa-video"></i>';
+            vidBtn.classList.remove('off');
+        } else {
+            vidBtn.innerHTML = '<i class="fas fa-video-slash"></i>';
+            vidBtn.classList.add('off');
+        }
+    }
+
     window.switchCamera = function() {
-        // Toggle Mode
         currentCameraMode = (currentCameraMode === 'user') ? 'environment' : 'user';
         openCamera(currentCameraMode);
     };
@@ -161,7 +212,7 @@ if (window.location.pathname.includes("app.html")) {
 
     function findMatch() {
         if(!isMatching) return;
-        document.getElementById('status-text').innerText = "Searching for Partner...";
+        document.getElementById('status-text').innerText = "Searching...";
         document.getElementById('call-timer').innerText = "Searching...";
         
         db.ref('users/' + auth.currentUser.uid + '/blocked').once('value').then(blockedSnapshot => {
@@ -198,29 +249,21 @@ if (window.location.pathname.includes("app.html")) {
         const ref = db.ref('waiting_queue').push();
         ref.set(myPeerId);
         ref.onDisconnect().remove();
-        document.getElementById('status-text').innerText = "Waiting for someone...";
+        document.getElementById('status-text').innerText = "Waiting...";
     }
 
     function handleCall(call) {
         currentCall = call;
         currentPartnerId = call.peer;
-        
-        // Show Video UI
         document.getElementById('video-container').style.display = 'block';
         document.getElementById('status-text').innerText = "";
-        
-        // Update WhatsApp Style Name
-        document.getElementById('remote-name').innerText = "ID: " + currentPartnerId.substring(0, 6) + "...";
+        document.getElementById('remote-name').innerText = "ID: " + currentPartnerId.substring(0, 5);
         document.getElementById('call-timer').innerText = "Connected";
 
         call.on('stream', remoteStream => {
             const remoteVideo = document.getElementById('remoteVideo');
             remoteVideo.srcObject = remoteStream;
-            
-            // --- AUDIO FIX ---
-            // Ensure remote video is NOT muted and force play
-            remoteVideo.muted = false;
-            remoteVideo.play().catch(e => console.error("Auto-play error:", e));
+            remoteVideo.play().catch(e => console.error(e));
         });
 
         call.on('close', () => { if(isMatching) findMatch(); });
@@ -228,7 +271,7 @@ if (window.location.pathname.includes("app.html")) {
     }
 
     window.reportUser = function() {
-        if(currentPartnerId && confirm("Block this user?")) {
+        if(currentPartnerId && confirm("Block User?")) {
             db.ref('users/' + auth.currentUser.uid + '/blocked/' + currentPartnerId).set(true);
             findNext();
         }
@@ -242,8 +285,16 @@ if (window.location.pathname.includes("app.html")) {
     window.findNext = function() {
         if (currentCall) currentCall.close();
         document.getElementById('remoteVideo').srcObject = null;
-        document.getElementById('remote-name').innerText = "Finding next...";
+        document.getElementById('remote-name').innerText = "Next...";
         findMatch();
     };
+
+    // --- EXIT FIXES ---
+    window.addEventListener('popstate', function() { cancelSearch(); window.location.href = 'index.html'; });
+    window.addEventListener('beforeunload', function() { cancelSearch(); });
+    window.addEventListener('pagehide', function() { 
+        cancelSearch(); 
+        if(myStream) myStream.getTracks().forEach(track => track.stop());
+    });
 }
 

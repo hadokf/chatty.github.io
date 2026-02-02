@@ -11,6 +11,7 @@
             --bg-color: #000;
             --primary: #00C6FF;
             --danger: #ff0055;
+            --glass: rgba(255, 255, 255, 0.2);
         }
 
         body {
@@ -19,7 +20,7 @@
             color: white; overflow: hidden; height: 100vh;
         }
 
-        /* --- VIDEO FULLSCREEN --- */
+        /* --- VIDEO UI --- */
         #video-container {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             z-index: 999; display: none; background: #000;
@@ -29,34 +30,24 @@
             width: 100%; height: 100%; object-fit: cover;
         }
 
-        /* My Video (Selfie) */
         #myVideo {
-            position: absolute; bottom: 150px; right: 20px;
+            position: absolute; bottom: 140px; right: 20px;
             width: 100px; height: 130px; border-radius: 12px;
             border: 2px solid rgba(255,255,255,0.5); object-fit: cover;
             z-index: 1000; background: #222; transform: scaleX(-1);
         }
 
-        /* --- WHATSAPP STYLE HEADER --- */
+        /* Call Info Header */
         .call-info-bar {
             position: absolute; top: 0; left: 0; width: 100%;
-            padding: 40px 20px 20px; /* Top padding for notch */
+            padding: 40px 20px 20px;
             background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent);
             z-index: 1002; text-align: center;
-            display: flex; flex-direction: column; align-items: center;
         }
-        
-        .remote-username {
-            font-size: 22px; font-weight: bold; text-shadow: 0 2px 5px black;
-            display: flex; align-items: center; gap: 10px;
-        }
-        
-        .call-status {
-            font-size: 14px; color: #ccc; margin-top: 5px;
-            text-shadow: 0 1px 3px black;
-        }
+        .remote-username { font-size: 20px; font-weight: bold; text-shadow: 0 2px 4px black; }
+        .call-status { font-size: 14px; color: #ccc; text-shadow: 0 1px 2px black; }
 
-        /* --- CONTROLS --- */
+        /* Top Controls (Report & Switch) */
         .top-controls {
             position: absolute; top: 40px; right: 20px; z-index: 1003;
             display: flex; flex-direction: column; gap: 15px;
@@ -67,18 +58,24 @@
             backdrop-filter: blur(5px); cursor: pointer; display: flex; align-items: center; justify-content: center;
         }
 
+        /* --- BOTTOM CONTROLS (NEW LAYOUT) --- */
         .bottom-controls {
-            position: absolute; bottom: 40px; left: 0; width: 100%;
-            display: flex; justify-content: center; gap: 40px; z-index: 1003;
+            position: absolute; bottom: 30px; width: 100%;
+            display: flex; justify-content: center; align-items: center; gap: 20px;
+            z-index: 1003; padding: 0 20px;
         }
         
         .btn-action {
-            width: 65px; height: 65px; border-radius: 50%; border: none; font-size: 26px;
+            width: 60px; height: 60px; border-radius: 50%; border: none; font-size: 24px;
             color: white; display: flex; align-items: center; justify-content: center;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.5); cursor: pointer;
+            cursor: pointer; transition: 0.2s; box-shadow: 0 4px 10px rgba(0,0,0,0.5);
         }
-        .btn-end { background: var(--danger); }
-        .btn-next { background: var(--primary); }
+
+        .btn-toggle { background: var(--glass); backdrop-filter: blur(10px); }
+        .btn-toggle.off { background: white; color: black; } /* Style when OFF */
+        
+        .btn-end { background: var(--danger); width: 70px; height: 70px; font-size: 30px; }
+        .btn-next { background: var(--primary); width: 70px; height: 70px; font-size: 30px; }
 
         /* --- MAIN UI --- */
         #main-ui { height: 100vh; display: flex; flex-direction: column; }
@@ -87,20 +84,17 @@
         
         .tab-content { flex: 1; padding: 20px; text-align: center; display: none; overflow-y: auto; }
         .active-tab { display: block; }
-
+        
         .btn-start {
             background: linear-gradient(135deg, #00C6FF, #0072FF);
             border: none; color: white; padding: 15px 50px; border-radius: 50px;
             font-size: 20px; font-weight: bold; margin-top: 50px; cursor: pointer;
-            box-shadow: 0 0 20px rgba(0, 198, 255, 0.3);
         }
-
         .btn-cancel {
             background: #333; color: white; border: 1px solid #555;
             padding: 10px 30px; border-radius: 30px; margin-top: 20px; cursor: pointer; display: none;
         }
-
-        /* Nav Bar */
+        
         .nav-bar {
             height: 70px; background: #111; display: flex; justify-content: space-around; align-items: center;
             border-top: 1px solid #333; position: fixed; bottom: 0; width: 100%;
@@ -113,9 +107,7 @@
 
     <div id="video-container">
         <div class="call-info-bar">
-            <div class="remote-username">
-                <i class="fas fa-user-circle"></i> <span id="remote-name">Unknown User</span>
-            </div>
+            <div class="remote-username"><i class="fas fa-user-circle"></i> <span id="remote-name">User</span></div>
             <div class="call-status" id="call-timer">Connecting...</div>
         </div>
 
@@ -128,8 +120,21 @@
         </div>
 
         <div class="bottom-controls">
-            <button class="btn-action btn-end" onclick="endCall()"><i class="fas fa-phone-slash"></i></button>
-            <button class="btn-action btn-next" onclick="findNext()"><i class="fas fa-arrow-right"></i></button>
+            <button class="btn-action btn-toggle" onclick="toggleMic()" id="btn-mic">
+                <i class="fas fa-microphone"></i>
+            </button>
+            
+            <button class="btn-action btn-end" onclick="endCall()">
+                <i class="fas fa-phone-slash"></i>
+            </button>
+
+            <button class="btn-action btn-next" onclick="findNext()">
+                <i class="fas fa-arrow-right"></i>
+            </button>
+
+            <button class="btn-action btn-toggle" onclick="toggleVideo()" id="btn-video">
+                <i class="fas fa-video"></i>
+            </button>
         </div>
     </div>
 
